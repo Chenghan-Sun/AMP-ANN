@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#SBATCH -J job -p skx-normal --nodes=1 -t 7:00:00 --output=job.out --error=job.err --ntasks-per-node=48
+#SiBATCH -J job -p skx-normal --nodes=1 -t 7:00:00 --output=job.out --error=job.err --ntasks-per-node=48
 
 import time
-#start = time.time()
+start = time.time()
 from ase import io
 import matplotlib.pyplot as plt
 import glob, os, sys
 from ase.visualize import view
 import shutil
 #colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-sys.path.insert(0,os.eviron['HOME']+'/lib/amp/')
+sys.path.insert(0,os.environ['HOME']+'/AMP-ANN')
 #sys.path.insert(0,"/Users/furinkazan/01_train_force")
 from training_utils import Fp_analysis_tools
 from training_utils import Train_tools
@@ -27,16 +27,19 @@ G4_zetas = [1., 4.]
 G4_gammas = [+1., -1.]
 descriptor, G = fp_analy.descriptor_generator(G2_etas, G4_etas, G4_zetas, G4_gammas)
 
-path = "/Users/furinkazan/01_train_force/"
+path = os.environ['HOME']+"/AMP-ANN/"
 train_tools = Train_tools(descriptor, path, True)
 training_traj, validation_traj = train_tools.read_traj() #default index
+print("successfully read traj files")
 e_dft_train, e_dft_validation = train_tools.get_dft_energy(training_traj, validation_traj, False)
 
+print("successfully get dft energy")
 x_train_force_list, x_valid_force_list, y_train_force_list, y_valid_force_list, z_train_force_list, z_valid_force_list = train_tools.get_dft_force(
 training_traj, validation_traj, False, False)
+print("successfully get xyz dft forces") 
 print(x_train_force_list) #7atoms X 11 trajs
 print(len(x_train_force_list))
-print('***********************************')
+print("** Training Start**")
 # START Training
 
 nn_features_dict = {
@@ -44,11 +47,11 @@ nn_features_dict = {
     'optimizer': 'L-BFGS-B',
     'lossprime': True,
     'convergence': {'energy_rmse': 0.02,
-                    'force_rmse': 0.05},
+                    'force_rmse': 0.2},
     'force_coefficient': 0.04
 }
 calc = train_tools.train_amp_setup(True, training_traj, **nn_features_dict)
-
+print("Training Finished")
 # get AMP energies and forces
 # if training ended
 calc = Amp.load('amp.amp')
@@ -77,3 +80,4 @@ end = time.time()
 f = open("running_time.txt", "a")
 f.write("Code finished in " + str(end-start) + "s")
 f.close()
+Print("code finished")
