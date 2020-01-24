@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+'''
+This file:
+    repo for utilities of Atomistic Machine Learning Project
+    implemented classes:
+        Database_tools: ab-initio data from vasprun.xml files
+            --> db --> .trajfile
+        Fp_analysis_tools: 
+'''
 
-## codebase ##
-################################################################################
 import glob, os, sys
 from ase import io
 import numpy as np
@@ -37,14 +43,17 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 from ase.visualize import view
 
 # sklearn module
-sys.path.insert(0,"/usr/local/lib/python3.7/site-packages/")
+sys.path.insert(0, "/usr/local/lib/python3.7/site-packages/")
 from sklearn.metrics import mean_squared_error
-
+from sklearn import preprocessing
 
 class Database_tools:
-    """ ASE Database tools used for sampling data from raw DFT calculations
-        Init: specify directory path of database, database name
-        TODO: #1 add read vasprun.xml file functionality
+    """ Summary:
+            ASE Database tools used for sampling data from raw DFT calculations
+        init:
+            specify directory path of database, database name
+            default all training-validation .traj file names
+        TODO: #1 add read-in vasprun.xml file functionality
     """
     def __init__(self, db_path, db_name, dataset='all.traj', training_traj='trainset.traj', validation_traj='validset.traj'):
         self.path = db_path
@@ -54,33 +63,41 @@ class Database_tools:
         self.validation_traj = validation_traj
 
     def db_selector(self, **kwargs):
-        """ Extract traj list of atom configurations from database
-            Inputs: kwargs: dictionary of db search key words
-            Output: atoms trajectory list
+        """ Summary:
+                Extract traj list of atom configurations from database
+            Parameters:
+                kwargs: dictionary of db search key words
+            Returns:
+                traj: atoms trajectory list
         """
         #remove the old folders
-        if os.path.isfile(self.dataset):
-            os.remove(self.dataset)
-            os.remove(self.training_traj)
-            os.remove(self.validation_traj)
-        else:
-            print('No existed traj files detected')
+        #if os.path.isfile(self.dataset):
+            #os.remove(self.dataset)
+            #os.remove(self.training_traj)
+            #os.remove(self.validation_traj)
+            #print("delete old traj files")
+        #else:
+            #print('No existing traj files detected')
         traj = []
         db = connect(self.path + self.name)
         dict_v = [v for k,v in kwargs.items()]
-        dict_v = ", ".join(dict_v) # list --> string
+        dict_v = ", ".join(dict_v) # list to string
         for row in db.select(dict_v):
             atoms = db.get_atoms(id=row.id)
             traj.append(atoms)
         return traj
 
     def train_test_split(self, shuffle_mode, traj, training_weight):
-        """ Inputs: mode = 0 or 1: randomly selection or dummy selection
-                    traj: traj file as a list from db_selector function
-                    training_weight: weight percentage of train-test split
-            Outputs: length of traj file, training traj, valid traj
+        """ Summary:
+                split selected trajs into train and test sets
+            Parameters:
+                mode = 0 or 1: randomly selection or dummy selection
+                traj: traj file as a list from db_selector function
+                training_weight: weight percentage of train-test split
+            Returns:
+                length of traj file, training traj, valid traj
         """
-        if shuffle_mode == True:
+        if shuffle_mode == True: # shuffle the dataset
             shuffle(traj)
         elif shuffle_mode == False:
             pass
@@ -91,20 +108,21 @@ class Database_tools:
         return len_traj, traj_train, traj_valid
 
 class Fp_analysis_tools:
-    """ Some notes about the fp data structure:
-        The key of fp --> each of the atoms, 43 in total
-            the hash of fp: 0 --> the element type of atom e.g. oxygen
-            1 --> each fp values, 36 in total, refering to the Gaussian data
-        if fp = descriptor.fingerprints[hash]:
-            fp gives # of images, each image contains list of all 43 elements, each element
-            has 36 fp values, which could be tested by:
-            fp = descriptor.fingerprints[hash][atom_index][1]
-            print(fp, len(fp)))
-        The number of fps caculation rule:
-            G2: 4 eta-parameters X 3 different type of atoms = 12 fps
-            G4: 1 eta-parameter X 2 zeta-parameter X 2 gamma-parameter X 6 (A3_2) types of
-            2-atom interactions = 24 fps
-            --> all together 36 fps
+    """ Summary:
+            Some notes about the fp data structure:
+            The key of fp --> each of the atoms, 43 in total
+                the hash of fp: 0 --> the element type of atom e.g. oxygen
+                1 --> each fp values, 36 in total, refering to the Gaussian data
+            if fp = descriptor.fingerprints[hash]:
+                fp gives # of images, each image contains list of all 43 elements, each element
+                has 36 fp values, which could be tested by:
+                fp = descriptor.fingerprints[hash][atom_index][1]
+                print(fp, len(fp)))
+            The number of fps caculation rule:
+                G2: 4 eta-parameters X 3 different type of atoms = 12 fps
+                G4: 1 eta-parameter X 2 zeta-parameter X 2 gamma-parameter X 6 (A3_2) types of
+                2-atom interactions = 24 fps
+                --> all together 36 fps
     """
     def __init__(self, metal, mode, ):
         """ Inputs: #1 type of metal nanocluster
@@ -233,16 +251,16 @@ class Fp_analysis_tools:
                     zeo_index_list.append(j)
                     zeo_ele_list.append(val)
 
-        ax.bar(range(len(G2_val)), G2_val, label = "G2") #set the x-y axis
-        ax.bar(np.arange(len(G4_val)) + len(G2_val), G4_val, label = "G4")
-        ax.set_title(title)
-        ax.set_ylim(0., 13.)
-        ax.set_xlabel('fingerprint')
-        ax.set_ylabel('value')
+        ax.bar(range(len(G2_val)), G2_val, label = "G1") #set the x-y axis
+        ax.bar(np.arange(len(G4_val)) + len(G2_val), G4_val, label = "G2")
+        ax.set_title(title, fontsize=14)
+        ax.set_ylim(0., 12.)
+        ax.set_xlabel('Index of fingerprints', fontsize=14)
+        ax.set_ylabel('Value of fingerprints', fontsize=14)
         ax.scatter(metal_index_list, metal_ele_list, marker = 'o', color='purple', label='metal atom')
         if self.mode == 1:
             ax.scatter(zeo_index_list, zeo_ele_list, marker = 'x', color='purple', label='only zeo atoms')
-        ax.legend()
+        ax.legend(fontsize = 14)
         fig.savefig(fig_name)
 
 class Train_tools:
@@ -292,7 +310,7 @@ class Train_tools:
         regressor = Regressor(optimizer=nn_dict[1], lossprime=nn_dict[2])
         calc.model.regressor = regressor
         if self.force_option == False:
-            calc.model.lossfunction = LossFunction(convergence=nn_dict[3])
+            calc.model.lossfunction = LossFunction(convergence=nn_dict[3], )
         elif self.force_option == True:
             calc.model.lossfunction = LossFunction(convergence=nn_dict[3], force_coefficient=nn_dict[4])
         if trigger == True:
@@ -315,11 +333,12 @@ class Train_tools:
             rel_e_dft_validation = e_dft_validation - min(e_dft)
             return e_dft_train, e_dft_validation, rel_e_dft_train, rel_e_dft_validation
 
-    def get_dft_force(self, training_traj, validation_traj, rel_option, norm_option):
+    def get_dft_force(self, training_traj, validation_traj, rel_option, norm_option, normalize_option):
         """ Inputs: train-valid sets from fcn --> read_traj
             Outputs: forces at X-Y-Z axises
                     choose to return raw or/both relative dft forces
                     choose to return total force
+            TODO: normalize about total forces and rel forces
         """
         if self.force_option == False:
             raise ValueError('Force_option is not turned on!')
@@ -338,6 +357,7 @@ class Train_tools:
             x_train_force_list.append(i[0])
             y_train_force_list.append(i[1])
             z_train_force_list.append(i[2])
+        #print(len(x_train_force_list)) #
 
         x_valid_force_list = []
         y_valid_force_list = []
@@ -347,6 +367,15 @@ class Train_tools:
             x_valid_force_list.append(i[0])
             y_valid_force_list.append(i[1])
             z_valid_force_list.append(i[2])
+
+        # normalize the decompsoed forces
+        if normalize_option == True:
+            x_nor_train_force_list = preprocessing.normalize(x_train_force_list, norm='l2')
+            y_nor_train_force_list = preprocessing.normalize(y_train_force_list, norm='l2')
+            z_nor_train_force_list = preprocessing.normalize(z_train_force_list, norm='l2')
+            x_nor_valid_force_list = preprocessing.normalize(x_valid_force_list, norm='l2')
+            y_nor_valid_force_list = preprocessing.normalize(y_valid_force_list, norm='l2')
+            z_nor_valid_force_list = preprocessing.normalize(z_valid_force_list, norm='l2')
 
         # translate to total force
         if norm_option == True:
@@ -371,9 +400,14 @@ class Train_tools:
             return (rel_f_x_dft_train, rel_f_x_dft_valid, rel_f_y_dft_train,
                     rel_f_y_dft_valid, rel_f_z_dft_train, rel_f_z_dft_valid)
 
-        elif (norm_option == False and rel_option == False):
+        elif (norm_option == False and rel_option == False and normalize_option == False):
             return (x_train_force_list, x_valid_force_list, y_train_force_list,
                     y_valid_force_list, z_train_force_list, z_valid_force_list)
+
+        elif (norm_option == False and rel_option == False and normalize_option == True):
+            return (x_nor_train_force_list, x_nor_valid_force_list, y_nor_train_force_list,
+                    y_nor_valid_force_list, z_nor_train_force_list, z_nor_valid_force_list)
+
 
     def get_neuralnet_energy(self, calc, training_traj, validation_traj, rel_option):
         """ Inputs: trained AMP calculator returned from fcn --> train_amp_setup
@@ -397,9 +431,10 @@ class Train_tools:
         elif rel_option == False:
             return e_amp_train, e_amp_validation
 
-    def get_neuralnet_force(self, calc, training_traj, validation_traj, rel_option, norm_option):
+    def get_neuralnet_force(self, calc, training_traj, validation_traj, rel_option, norm_option, normalize_option):
         """ Inputs: trained AMP calculator
             Outputs: raw and relative AMP forces
+            TODO: normalize about total forces and rel forces
         """
         if self.force_option == False:
             raise ValueError('Force_option is not turned on!')
@@ -436,6 +471,15 @@ class Train_tools:
             y_valid_force_list.append(i[1])
             z_valid_force_list.append(i[2])
 
+        # normalize the decompsoed forces
+        if normalize_option == True:
+            x_nor_train_force_list = preprocessing.normalize(x_train_force_list, norm='l2')
+            y_nor_train_force_list = preprocessing.normalize(y_train_force_list, norm='l2')
+            z_nor_train_force_list = preprocessing.normalize(z_train_force_list, norm='l2')
+            x_nor_valid_force_list = preprocessing.normalize(x_valid_force_list, norm='l2')
+            y_nor_valid_force_list = preprocessing.normalize(y_valid_force_list, norm='l2')
+            z_nor_valid_force_list = preprocessing.normalize(z_valid_force_list, norm='l2')
+
         # translate to total force
         if norm_option == True:
             f_amp_train = [np.linalg.norm(forces) for forces in f_amp_train]
@@ -459,13 +503,20 @@ class Train_tools:
             return (rel_f_x_amp_train, rel_f_x_amp_valid, rel_f_y_amp_train,
                     rel_f_y_amp_valid, rel_f_z_amp_train, rel_f_z_amp_valid)
 
-        elif (norm_option == False and rel_option == False):
+        elif (norm_option == False and rel_option == False and normalize_option == False):
             return (x_train_force_list, x_valid_force_list, y_train_force_list,
                     y_valid_force_list, z_train_force_list, z_valid_force_list)
+
+        elif (norm_option == False and rel_option == False and normalize == True):
+            return (x_nor_train_force_list, x_nor_valid_force_list, y_nor_train_force_list,
+                    y_nor_valid_force_list, z_nor_train_force_list, z_nor_valid_force_list)
 
     def fitting_energy_plot(self, e_dft_train, e_dft_validation, e_amp_train, e_amp_validation, fig_title):
         """ Inputs: train-valid dft/amp raw/rel energies
             Outputs: Figure 1: fitting results
+                        blue circles: raw DFT dataset
+                        black line: fitted values
+                        orange circles: predicted values
                      Figure 2: Histogram of energy sampling
         """
         plt.figure(figsize=(6, 8))
@@ -526,6 +577,36 @@ class Train_tools:
 class Model_analysis:
     """ implemented convergence and parameters ananlysis for Atomistic Machine Learning task
     """
-    def __init__(self, ):
+    def __init__(self, default, logpath, logfile='./amp-log.txt'):
+        self.logfile = logfile
+        self.default = default
+        self.logpath = logpath
 
-    def 
+    def conv_plot_default(self, label):
+        """ convergence plot using default module
+            Inputs: label (e.g. NN architecture 5x5)
+            Outputs: .png convergence behavior plot
+        """
+        if self.default == True:
+            logfile = self.logpath+'/'+self.logfile
+            plot_convergence(logfile, plotfile='convergence.png')
+        elif self.default == False:
+            logfile = self.logpath+'/amp-log-'+label+'.txt'
+            plot_convergence(logfile, plotfile='convergence-'+label+'.png')
+
+    def extract_logfile(self, ):
+        """ Reads the log file from the training process, returning the relevant
+        parameters
+            Inputs: amp-log.txt file from a training circle
+            Outputs:
+        """
+        data = {}
+
+        with open(logfile, 'r') as f:
+            lines = f.read().splitlines()
+            print(len(lines))
+        print('file opened')
+
+        """ TODO: temperarily for QE Results:
+
+        """
