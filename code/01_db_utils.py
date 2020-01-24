@@ -4,7 +4,7 @@
 This file:
     returns all, training-set, test-set .traj files from selected database
     note: use relative paths along the repo
-    output: traj files written @ "../traj_folder/" 
+    output: traj files written @ "../tests/traj_folder/"
 '''
 
 import glob, os, sys
@@ -18,12 +18,13 @@ from training_utils import Database_tools
 # @linux: ase db 00_100_spe_7pt.db "fmax<2.5" "energy<-27" "zeo=spe_7pt"
 db_features_dict = {
     "zeo": 'zeo', # fed-in the key itself
-    "fmax": 'fmax<3.0',
-    "energy": 'energy<-26.5',
-    "small_dataset": 'small_dataset=True'
+    #"fmax": 'fmax<3.0',
+    #"energy": 'energy<-26.5',
+    #"small_dataset": 'small_dataset=True'
 }
 db_path = '../data/'
-db_name = 'md_sod_pt.db'
+#db_name = 'md_sod_pt.db'
+db_name = '00_100_spe_7pt.db'
 
 # Load Module
 db_tools = Database_tools(db_path, db_name)
@@ -34,7 +35,7 @@ print('Images_total=', len_traj)
 print('Images_validation=', len(traj_train))
 print('Images_training=', len(traj_valid))
 
-traj_path = "../traj_folder/"
+traj_path = "../tests/traj_folder/"
 os.makedirs(traj_path)
 os.chdir(traj_path)
 
