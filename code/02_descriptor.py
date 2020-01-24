@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 '''
 This file:
-    linked with: .traj file @ ../traj_folder/ and finger_f90 @ ../src/
-    output: fingerprints file @ ../fps_path/
+    linked with: .traj file @ ../tests/traj_folder/ and finger_f90 @ ../src/
+    output: fingerprints file @ ../tests/fps_path/
 '''
 
 import os, math, argparse, hashlib, subprocess, sys
@@ -12,6 +12,7 @@ import pickle, datetime
 from ase import Atoms, Atom, units
 from ase.io.trajectory import Trajectory
 from amp.utilities import hash_images, get_hash
+import shutil
 
 def traj_info(atoms):
     """ Summary:
@@ -164,8 +165,12 @@ def fp_generator(trajfile, Rc, calc_primes, fortran_path):
 if __name__ == "__main__":
     trajfile = "../traj_folder/all.traj"
     fortran_path = "../src/finger_f90"
-    fps_path = "../fps_folder/" # folder to store fingerprints
-    os.makedirs(fps_path)
+    fps_path = "../tests/fps_folder/" # folder to store fingerprints
+    if os.path.exists(fps_path):
+        shutil.rmtree(fps_path)
+        os.makedirs(fps_path)
+    else:
+        os.makedirs(fps_path)
     os.chdir(fps_path)
     print("successfully redirect to @ {}".format(os.getcwd()))
     fp_generator(trajfile, 6.5, 1, fortran_path)
