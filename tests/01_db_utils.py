@@ -4,6 +4,7 @@
 This file:
     returns all, training-set, test-set .traj files from selected database
     note: use relative paths along the repo
+    output: traj files written @ "../traj_folder/" 
 '''
 
 import glob, os, sys
