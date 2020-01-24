@@ -8,36 +8,6 @@ from ase import Atoms, Atom, units
 from ase.io.trajectory import Trajectory
 from amp.utilities import hash_images, get_hash
 
-#function get_hash
-'''
-def get_hash(atoms):
-    """Creates a unique signature for a particular ASE atoms object.
-
-    This is used to check whether an image has been seen before. This is just
-    an md5 hash of a string representation of the atoms object.
-
-    Parameters
-    ----------
-    atoms : ASE dict
-        ASE atoms object.
-
-    Returns
-    -------
-        Hash string key of 'atoms'.
-    """
-
-    string = str(atoms.pbc)
-    for number in atoms.cell.flatten():
-        string += '%.15f' % number
-    string += str(atoms.get_atomic_numbers())
-    for number in atoms.get_positions().flatten():
-        string += '%.15f' % number
-
-    md5 = hashlib.md5(string.encode('utf-8'))
-    hash = md5.hexdigest()
-    return hash
-'''
-
 def traj_info(atoms):
     """ function generates information of the atomistic system
     files written out
@@ -96,11 +66,13 @@ def fp_generator(trajfile, Rc, calc_primes):
         # call the fortran acceleration code
         symbols=sorted(set(atoms.get_chemical_symbols()))
         print(symbols)
-        command = "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
+        #command = "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
+        command = fp_path + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
         print (command)
         #sys.exit()
 
-        subprocess.call( "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
+        #subprocess.call( "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
+        subprocess.call( "/Users/furinkazan/08_hack_amp_model_test/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
         elem_list = []
         neighbors_list = []
         fingers = []
@@ -174,6 +146,11 @@ def fp_generator(trajfile, Rc, calc_primes):
         f = open(path_prime + hash, 'wb')
         pickle.dump(primes, f)
         f.close()
+
+fps_path = "../fps_folder/" # folder for fingerprints
+os.makedirs(fps_path)
+os.chdir(fps_path)
+print("successfully redirect to @ {}".format(os.getcwd()))
 
 if __name__ == "__main__":
     fp_generator('all.traj',6.5,1)
