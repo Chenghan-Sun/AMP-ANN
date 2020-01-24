@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+'''
+This file:
+    linked with: .traj file @ ../traj_folder/ and finger_f90 @ ../src/
+    output: fingerprints file @ ../fps_path/
+'''
 
 import os, math, argparse, hashlib, subprocess, sys
 import numpy as np
@@ -9,10 +14,10 @@ from ase.io.trajectory import Trajectory
 from amp.utilities import hash_images, get_hash
 
 def traj_info(atoms):
-    """ function generates information of the atomistic system
-    files written out
+    """ Summary:
+            function generates information of the atomistic system
+            files written out @ given directory
     """
-
     f=open('cell_matrix', 'w+')
     f.write("%8.6f %8.6f %8.6f\n" % ( atoms.cell[0][0], atoms.cell[0][1], atoms.cell[0][2]))
     f.write("%8.6f %8.6f %8.6f\n" % ( atoms.cell[1][0], atoms.cell[1][1], atoms.cell[1][2]))
@@ -35,8 +40,18 @@ def traj_info(atoms):
         f.write(atom + '\n')
     f.close()
 
-def fp_generator(trajfile, Rc, calc_primes):
-
+def fp_generator(trajfile, Rc, calc_primes, fortran_path):
+    """ Summary:
+            generate fingerprints based on all traj files
+        Parameters:
+            trajfile: path of all.traj file
+            Rc: cutoff radius
+            calc_primes: 0: train energy
+                         1: train both energy/force
+            fortran_path: directory to compiled finger_f90
+        Returns:
+            writeout fingerprints files to the given folder
+    """
     # generate descriptor path
     path_prime='amp-fingerprint-primes.ampdb/loose/'
     path_finger='amp-fingerprints.ampdb/loose/'
@@ -67,12 +82,11 @@ def fp_generator(trajfile, Rc, calc_primes):
         symbols=sorted(set(atoms.get_chemical_symbols()))
         print(symbols)
         #command = "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
-        command = fp_path + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
+        command = fortran_path + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes)
         print (command)
-        #sys.exit()
 
         #subprocess.call( "/Users/furinkazan/metal@zeo_codes/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
-        subprocess.call( "/Users/furinkazan/08_hack_amp_model_test/finger_f90" + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
+        subprocess.call(fortran_path + " " + str(len(atoms)) + " " + str(len(symbols)) + " " + str(Rc) + " " + str(calc_primes), shell=True)
         elem_list = []
         neighbors_list = []
         fingers = []
@@ -147,10 +161,12 @@ def fp_generator(trajfile, Rc, calc_primes):
         pickle.dump(primes, f)
         f.close()
 
-fps_path = "../fps_folder/" # folder for fingerprints
-os.makedirs(fps_path)
-os.chdir(fps_path)
-print("successfully redirect to @ {}".format(os.getcwd()))
-
 if __name__ == "__main__":
-    fp_generator('all.traj',6.5,1)
+    trajfile = "../traj_folder/all.traj"
+    fortran_path = "../src/finger_f90"
+    fps_path = "../fps_folder/" # folder to store fingerprints
+    os.makedirs(fps_path)
+    os.chdir(fps_path)
+    print("successfully redirect to @ {}".format(os.getcwd()))
+    fp_generator(trajfile, 6.5, 1, fortran_path)
+    print("All fingerprints generated")
