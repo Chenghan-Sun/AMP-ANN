@@ -41,6 +41,7 @@ from amp.analysis import plot_convergence
 import matplotlib.pyplot as plt
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 from ase.visualize import view
+#from colorama import Fore, Style
 
 # sklearn module
 sys.path.insert(0, "/usr/local/lib/python3.7/site-packages/")
@@ -177,45 +178,60 @@ class Fp_analysis_tools:
 
     def calc_fp(self, descriptor, images):
         """ Summary:
-                
+                transform .traj images to hash images
             Parameters:
                 descriptor: from fcn --> descriptor_generator
                 images: by ase.io.read() .traj file
+            Returns:
+                descriptor: descriptor with calculated fps
+                images: hashed images
         """
         images = hash_images(images)
         descriptor.calculate_fingerprints(images)
         return descriptor, images
 
-    def fp_values_extractor(self, atom_index, G, hash, descriptor, fig_name):
-        """ Inputs: #1 atom_index: fp of which number of atom in the system
-                    e.g. atom_index = 0 the first O element
-                    #2 G: symmetry functions, return from fcn --> descriptor_generator
-                    #3 hash: receive the arg from emurating the images from --> calc_fp
-                    #4 descriptor from fcn --> calc_fp
-                    #5 figure name
-            Outputs: print out information about the fingerprints
-                    the scatter plot of the fp values
+    def fp_values_extractor(self, atom_index, G, hash, descriptor, fig_name="", fig_flag=False):
+        """ Summary:
+                Extract the fingerprint value from hased images based on descriptor
+                a hash = a image = an atomistic system
+            Parameters:
+                atom_index: fp of which number of atom in the system
+                    e.g. atom_index=0 is the first O element
+                G: symmetry functions, return from fcn --> descriptor_generator
+                hash: receive the arg from emurating the images from fcn --> calc_fp
+                descriptor from fcn --> calc_fp
+                figure name: given name of the plotfile, default to ""
+                fig_flag: falg for if user wants a plot
+            Returns:
+                printout information about the fingerprints of a atom in a hash image
+                scatter plot of the fingerprint values
         """
-        fp = descriptor.fingerprints[hash][atom_index][1]
+        fp = descriptor.fingerprints[hash][atom_index][1] # unpack the hash images
         for j, val in enumerate(fp):
             g = G[j]
             if g['type'] == 'G2':
                 ele = g['element']
             elif g['type'] == 'G4':
                 ele = g['elements']
+            else:
+                raise Exception("No such symmetry function implemented")
             print(j, g['type'], ele, g['eta'], val)
 
-            if self.metal in ele:
-                my_marker = 'o'
-            else:
-                my_marker = 'x'
-            plt.plot(j, val, my_marker)
-            plt.savefig(fig_name)
+            if fig_flag == True:
+                if self.metal in ele:
+                    my_marker = 'o' # o refers element with metal
+                else:
+                    my_marker = 'x'
+                plt.plot(j, val, my_marker)
+                plt.savefig(fig_name)
 
     def get_extreme_value_fp(self, descriptor, images):
-        """ Extract the maximum and minimum values of all the fingerprints generated
-            Inputs: enumerating the images returned by fcn --> calc_fp
-            Outputs: print out maximum and minimum values of fp
+        """ Summary:
+                Extract the maximum and minimum values of all the fingerprints generated
+            Parameters:
+                enumerating the images returned by fcn --> calc_fp
+            Returns:
+                printout maximum and minimum values of fp
         """
         for index, hash in enumerate(images.keys()):
             fp = descriptor.fingerprints[hash]#[0][1] all the information of fp
@@ -236,10 +252,18 @@ class Fp_analysis_tools:
         return max_fp, min_fp
 
     def fp_barplot(self, atom_index, G, hash, descriptor, fig_name, title):
-        """ make sure that's for one image, or make a gif for images
-            Makes a barplot of the fingerprint about certain atom
-            Input: #1-5 same as inputs of fcn --> fp_values_extractor
-            #6 title of each sub-polt
+        """ Summary:
+                Makes a barplot of the fingerprints for a certain atom
+            Parameters:
+                atom_index: fp of which number of atom in the system
+                    e.g. atom_index=0 is the first O element
+                G: symmetry functions, return from fcn --> descriptor_generator
+                hash: receive the arg from emurating the images from fcn --> calc_fp
+                descriptor from fcn --> calc_fp
+                figure name: given name of the plotfile
+                title: title of each sub-polt
+            Returns:
+                barplot of the fingerprint components for a certain atom
         """
         fp = descriptor.fingerprints[hash][atom_index][1] #list
         fig, ax = plt.subplots()
@@ -283,13 +307,16 @@ class Fp_analysis_tools:
         fig.savefig(fig_name)
 
 class Train_tools:
-    """ Training module using Machine learning for atomistic system model energies/forces fitting tasks
-        Use coupled with Fp_values_extractor module for generating descriptor.
+    """ Summary:
+            Training module using Machine learning for atomistic system model energies/forces fitting tasks
+        Note:
+            Use coupling with Fp_values_extractor module for generating descriptor.
     """
     def __init__(self, descriptor, path,  force_option, training_traj='trainset.traj', validation_traj='validset.traj'):
-        """ Init: Based on the fcn --> descriptor_generator in Fp_values_extractor module, returned descriptor
-            used in this fcn.
-            force_option: choose if want to turn on force training
+        """ Parameters:
+                Based on the fcn --> descriptor_generator in Fp_values_extractor module, returned descriptor
+                    used in this fcn.
+                force_option: choose if want to turn on force training
         """
         self.descriptor = descriptor
         self.path = path
