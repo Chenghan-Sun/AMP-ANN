@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'''
+"""
 This file:
     returns all, training-set, test-set .traj files from selected database
     note: use relative paths along the repo
     output: traj files written @ "../tests/traj_folder/"
-'''
+"""
 
-import glob, os, sys
+import os
+import sys
 from ase import io
-import numpy as np
-import shutil
-
-sys.path.insert(0, '../src/') # relative path
+sys.path.insert(0, '../src/')  # relative path
 from training_utils import Database_tools
 
 # @linux: ase db 00_100_spe_7pt.db "fmax<2.5" "energy<-27" "zeo=spe_7pt"
 db_features_dict = {
-    "zeo": 'zeo', # fed-in the key itself
-    #"fmax": 'fmax<3.0',
-    #"energy": 'energy<-26.5',
-    #"small_dataset": 'small_dataset=True'
+    "zeo": 'zeo',  # fed-in the key itself
+    # "fmax": 'fmax<3.0',
+    # "energy": 'energy<-26.5',
+    # "small_dataset": 'small_dataset=True'
 }
 db_path = '../data/'
-#db_name = 'md_sod_pt.db'
+# db_name = 'md_sod_pt.db'
 db_name = '00_100_spe_7pt.db'
 
 # Load Module
 db_tools = Database_tools(db_path, db_name)
-traj = db_tools.db_selector(**db_features_dict)[0:15] # create a small traj file as demo
+traj = db_tools.db_selector(**db_features_dict)[0:15]  # create a small traj file as demo
 len_traj, traj_train, traj_valid = db_tools.train_test_split(True, traj, 0.67)
 
 print('Images_total=', len_traj)
