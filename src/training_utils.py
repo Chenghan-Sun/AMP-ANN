@@ -48,6 +48,7 @@ sys.path.insert(0, "/usr/local/lib/python3.7/site-packages/")
 from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
 
+
 class Database_tools:
     """ Summary:
             ASE Database tools used for sampling data from raw DFT calculations
@@ -62,6 +63,7 @@ class Database_tools:
         self.dataset = dataset
         self.training_traj = training_traj
         self.validation_traj = validation_traj
+
 
     def db_selector(self, **kwargs):
         """ Summary:
@@ -88,6 +90,7 @@ class Database_tools:
             traj.append(atoms)
         return traj
 
+
     def train_test_split(self, shuffle_mode, traj, training_weight):
         """ Summary:
                 split selected trajs into train and test sets
@@ -107,6 +110,7 @@ class Database_tools:
         traj_train = traj[:len_train]
         traj_valid = traj[len_train:]
         return len_traj, traj_train, traj_valid
+
 
 class Fp_analysis_tools:
     """ Summary:
@@ -135,6 +139,7 @@ class Fp_analysis_tools:
         """
         self.metal = metal
         self.mode = mode
+
 
     def descriptor_generator(self, G2_etas, G4_etas, G4_zetas, G4_gammas):
         """ Summary:
@@ -176,6 +181,7 @@ class Fp_analysis_tools:
         descriptor = Gaussian(Gs = my_Gs)
         return descriptor, G
 
+
     def calc_fp(self, descriptor, images):
         """ Summary:
                 transform .traj images to hash images
@@ -189,6 +195,7 @@ class Fp_analysis_tools:
         images = hash_images(images)
         descriptor.calculate_fingerprints(images)
         return descriptor, images
+
 
     def fp_values_extractor(self, atom_index, G, hash, descriptor, fig_name="", fig_flag=False):
         """ Summary:
@@ -225,6 +232,7 @@ class Fp_analysis_tools:
                 plt.plot(j, val, my_marker)
                 plt.savefig(fig_name)
 
+
     def get_extreme_value_fp(self, descriptor, images):
         """ Summary:
                 Extract the maximum and minimum values of all the fingerprints generated
@@ -250,6 +258,7 @@ class Fp_analysis_tools:
             print("The maximum value of the fp is " + str(max_fp))
             print("The minimum value of the fp is " + str(min_fp))
         return max_fp, min_fp
+
 
     def fp_barplot(self, atom_index, G, hash, descriptor, fig_name, title):
         """ Summary:
@@ -306,13 +315,14 @@ class Fp_analysis_tools:
         ax.legend(fontsize = 14)
         fig.savefig(fig_name)
 
+
 class Train_tools:
     """ Summary:
             Training module using Machine learning for atomistic system model energies/forces fitting tasks
         Note:
             Use coupling with Fp_values_extractor module for generating descriptor.
     """
-    def __init__(self, descriptor, path,  force_option, training_traj='trainset.traj', validation_traj='validset.traj'):
+    def __init__(self, descriptor, path, force_option, training_traj='trainset.traj', validation_traj='validset.traj'):
         """ Parameters:
                 Based on the fcn --> descriptor_generator in Fp_values_extractor module, returned descriptor
                     used in this fcn.
@@ -324,46 +334,60 @@ class Train_tools:
         self.validation_traj = validation_traj
         self.force_option = force_option
 
+
     def read_traj(self, trainset_index=':', validset_index=':'):
-        """ .traj files input, specify selecting range of trajectories
+        """ Summary:
+                read-in trajectories from traj_folder
+            Parameters:
+                .traj files input, specify selecting range of trajectories
+            Returns:
+                loaded train / test images
         """
         training_traj = io.read(self.path + self.training_traj, trainset_index)
         validation_traj = io.read(self.path + self.validation_traj, validset_index)
         return training_traj, validation_traj
 
-    def train_amp_setup(self, trigger, training_traj, **kwargs):
-        """ Adjusting convergence parameters
-            how tightly the energy and/or forces are converged --> adjust the LossFunction
-            To change how the code manages the regression process --> use the Regressor class
-            Inputs: dictionary of neural-net parameters
-            dictionary tructure:
-                #1 'hiddenlayers': NN architecture
-                #2 'optimizer'
-                #3 'lossprime'：True if want gradient-based
-                #4 'convergence': convergence parameters
-                #5 force_coefficient: control the relative weighting of the energy and force RMSEs used
-                in the path to convergence
-            Output: Trained calculator
 
+    def train_amp_setup(self, trigger, training_traj, **kwargs):
+        """ Summary:
+                Adjusting convergence parameters
+                how tightly the energy and/or forces are converged --> adjust the LossFunction
+                To change how the code manages the regression process --> use the Regressor class
+            Parameters:
+                dictionary of neural-net parameters:
+                dictionary tructure:
+                    #1 'hiddenlayers': NN architecture
+                    #2 'optimizer'
+                    #3 'lossprime'：True if want gradient-based
+                    #4 'convergence': convergence parameters
+                    #5 force_coefficient: control the relative weighting of the energy and force RMSEs used
+                        in the path to convergence
+                    #6 indices_fit_forces: only use specified list of index of atoms for training,
+                        worked with hacked model/__init__.py ver.
+                trigger: control if choose to begin training
+            Returns:
+                calc: Trained calculator
             TDOD: #1 update optimizer
                   #2 update bootstrap-stat
                   #3 update more ML model
                   #4 updateb better method than decompose the nn_features_dict
         """
-        nn_dict = [v for k,v in kwargs.items()]
+        nn_dict = [v for k, v in kwargs.items()]
         calc = Amp(descriptor = self.descriptor, model = NeuralNetwork(hiddenlayers = nn_dict[0], checkpoints=14),
                    label='amp')
-        regressor = Regressor(optimizer=nn_dict[1], lossprime=nn_dict[2])
+        regressor = Regressor(optimizer = nn_dict[1], lossprime = nn_dict[2])
         calc.model.regressor = regressor
         if self.force_option == False:
-            calc.model.lossfunction = LossFunction(convergence=nn_dict[3], )
+            calc.model.lossfunction = LossFunction(convergence = nn_dict[3], )
         elif self.force_option == True:
-            calc.model.lossfunction = LossFunction(convergence=nn_dict[3], force_coefficient=nn_dict[4])
+            calc.model.lossfunction = LossFunction(convergence = nn_dict[3], force_coefficient = nn_dict[4])  # ,indices_fit_forces = nn_dict[5])
+
         if trigger == True:
-            calc.train(images=training_traj)
+            calc.train(images = training_traj)
         else:
             print("Training NOT Start")
         return calc
+
 
     def get_dft_energy(self, training_traj, validation_traj, rel_option):
         """ Inputs: train-valid sets from fcn --> read_traj
@@ -378,6 +402,7 @@ class Train_tools:
             rel_e_dft_train = e_dft_train - min(e_dft)
             rel_e_dft_validation = e_dft_validation - min(e_dft)
             return e_dft_train, e_dft_validation, rel_e_dft_train, rel_e_dft_validation
+
 
     def get_dft_force(self, training_traj, validation_traj, rel_option, norm_option, normalize_option):
         """ Inputs: train-valid sets from fcn --> read_traj
