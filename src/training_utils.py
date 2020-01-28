@@ -6,7 +6,7 @@ This file:
     implemented classes:
         Database_tools: ab-initio data from vasprun.xml files
             --> db --> .trajfile
-        Fp_analysis_tools: 
+        Fp_analysis_tools:
 '''
 
 import glob, os, sys
@@ -110,6 +110,7 @@ class Database_tools:
 class Fp_analysis_tools:
     """ Summary:
             Some notes about the fp data structure:
+            For 7nps@Zeo system
             The key of fp --> each of the atoms, 43 in total
                 the hash of fp: 0 --> the element type of atom e.g. oxygen
                 1 --> each fp values, 36 in total, refering to the Gaussian data
@@ -125,18 +126,31 @@ class Fp_analysis_tools:
                 --> all together 36 fps
     """
     def __init__(self, metal, mode, ):
-        """ Inputs: #1 type of metal nanocluster
-                    #2 mode=0: only the metal nanocluster
-                    mode=1: netal nanocluster with zeolite framework
+        """ Parameters:
+                metal: type of metal nanocluster
+                mode:
+                    =0: only the metal nanocluster
+                    =1: netal nanocluster with zeolite framework
         """
         self.metal = metal
         self.mode = mode
 
     def descriptor_generator(self, G2_etas, G4_etas, G4_zetas, G4_gammas):
-        """ Use this function solely for Amp calculator set-up
-            Inputs: #1-4 Use Gaussian Functions as fingerprints kernel
-                    Change the parameters of G2 and G4
-            Output: the descriptor, G data structure
+        """ Summary:
+                Use this function solely for Amp calculator set-up
+            Parameters:
+                #1-4 Use Gaussian Functions as fingerprints kernel by changing
+                the parameters of G2 and G4
+            Returns:
+                the descriptor: <amp.descriptor.gaussian.Gaussian object at 0x1013116a0>
+                G data structure：
+                example:
+                    [{'type': 'G2', 'element': 'Pt', 'eta': 0.05}, {'type': 'G2', 'element': 'Pt', 'eta': 4.0},
+                    {'type': 'G2', 'element': 'Pt', 'eta': 20.0}, {'type': 'G2', 'element': 'Pt', 'eta': 80.0},
+                    {'type': 'G4', 'elements': ['Pt', 'Pt'], 'eta': 0.005, 'gamma': 1.0, 'zeta': 1.0},
+                    {'type': 'G4', 'elements': ['Pt', 'Pt'], 'eta': 0.005, 'gamma': -1.0, 'zeta': 1.0},
+                    {'type': 'G4', 'elements': ['Pt', 'Pt'], 'eta': 0.005, 'gamma': 1.0, 'zeta': 4.0},
+                    {'type': 'G4', 'elements': ['Pt', 'Pt'], 'eta': 0.005, 'gamma': -1.0, 'zeta': 4.0}]
         """
         elements = [self.metal]
         if self.mode == 0:
@@ -144,7 +158,9 @@ class Fp_analysis_tools:
         elif self.mode == 1:
             elements.append('Si')
             elements.append('O')
-        # only
+        else:
+            raise Exception('mode should be 0 or 1. The value of mode was: {}'.format(self.mode))
+
         G = make_symmetry_functions(elements=elements, type='G2',
                                     etas = G2_etas)
         G += make_symmetry_functions(elements=elements, type='G4',
@@ -160,8 +176,11 @@ class Fp_analysis_tools:
         return descriptor, G
 
     def calc_fp(self, descriptor, images):
-        """ Inputs: #1 descriptor from fcn --> descriptor_generator
-                    #2 images by ase.io.read() .traj file
+        """ Summary:
+                
+            Parameters:
+                descriptor: from fcn --> descriptor_generator
+                images: by ase.io.read() .traj file
         """
         images = hash_images(images)
         descriptor.calculate_fingerprints(images)
@@ -407,7 +426,6 @@ class Train_tools:
         elif (norm_option == False and rel_option == False and normalize_option == True):
             return (x_nor_train_force_list, x_nor_valid_force_list, y_nor_train_force_list,
                     y_nor_valid_force_list, z_nor_train_force_list, z_nor_valid_force_list)
-
 
     def get_neuralnet_energy(self, calc, training_traj, validation_traj, rel_option):
         """ Inputs: trained AMP calculator returned from fcn --> train_amp_setup
