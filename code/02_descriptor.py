@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 """
 This file:
-    linked with: .traj file @ ../tests/traj_folder/ and finger_f90 @ ../src/
-    output: fingerprints file @ ../tests/fps_path/
+    linked with: .traj file @ ../sometests/traj_folder/ and finger_f90 @ ../src/
+    note: same directory as 01_db_utils.py
+        staticmethod not rely on any training_utils class
+    Inputs:
+        test_folder: name of demo folder
+        train force or not:
+            0: only energy
+            1: train energy and force @ fp_generator
+    Output:
+        fingerprints file @ ../sometests/fps_path/
 """
 
 import os
@@ -168,15 +176,19 @@ def fp_generator(trajfile, Rc, calc_primes, fortran_path):
 
 
 if __name__ == "__main__":
-    trajfile = "../traj_folder/all.traj"
-    fortran_path = "../src/finger_f90"
-    fps_path = "../tests/fps_folder/" # folder to store fingerprints
+    print(os.getcwd())
+    test_folder = "01_demo_10nps/"
+    fps_path = "../" + test_folder + "fps_folder/"  # folder to store fingerprints
     if os.path.exists(fps_path):
         shutil.rmtree(fps_path)
         os.makedirs(fps_path)
     else:
         os.makedirs(fps_path)
-    os.chdir(fps_path)
+    os.chdir(fps_path) # path affects the directory of traj_folder
+
+    trajfile = "../traj_folder/all.traj"
+    fortran_path = "../../src/finger_f90"
     print("successfully redirect to @ {}".format(os.getcwd()))
+
     fp_generator(trajfile, 6.5, 1, fortran_path)
     print("All fingerprints generated")
