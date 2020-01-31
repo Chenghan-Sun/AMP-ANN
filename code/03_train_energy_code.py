@@ -1,81 +1,83 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'''
-This file:
-    training script:
-    output:
-'''
+""" This file:
+        training script for train on only energy tasks
+        Inputs:
+            test_folder: name of demo folder
+            fp_analy: fingerprint analysis module, specify what type of metal, w/wo Zeolite framework
+            G2_etas, G4_etas, G4_zetas, G4_gammas: Gaussian parameters
+            nn_features_dict:
+                NN architecture
+                energy cutoff
+                indices_fit_forces
+        output:
+            calculator amp.amp @ "../XXX/fps_folder"
+            where XXX = demo folder
+"""
 
 import time
-from ase import io
-import matplotlib.pyplot as plt
-import glob, os, sys
-from ase.visualize import view
+import os
+import sys
 import shutil
+from colorama import Fore, Style
 
-#colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-sys.path.insert(0, '../src/') # relative path
-from training_utils import Fp_analysis_tools
-from training_utils import Train_tools
+sys.path.insert(0, '../src/')  # relative path
+from training_utils import FpsAnalysisTools
+from training_utils import TrainTools
 from amp import Amp
 
-'''
-src = '/Users/furinkazan/00_testing_folder/backup_fps'
-dst = '/Users/furinkazan/01_train_force'
-src_files = os.listdir(src)
-for file_name in src_files:
-    full_file_name = os.path.join(src, file_name)
-    if os.path.isfile(full_file_name):
-        shutil.copy(full_file_name, dest)
-print("successfully copied fp files")
-'''
+test_folder = "01_demo_10nps/"  # make the job testing folder
+fps_path = "../" + test_folder + "fps_folder/"
+os.chdir(fps_path)
+print("Redirect to fps folder @ " + str(os.getcwd()))
 
-## main code ##
-################################################################################
-#Load Module
-start = time.time()
-metal = 'Pt'
-fp_analy = Fp_analysis_tools(metal, 1)
-G2_etas = [0.05,4.0,20.0,80.0]
+# load class
+fp_analy = FpsAnalysisTools('Pt', 0)  # only the Pt nano-cluster
+G2_etas = [0.05, 4.0, 20.0, 80.0]
 G4_etas = [0.005]
 G4_zetas = [1., 4.]
 G4_gammas = [+1., -1.]
 descriptor, G = fp_analy.descriptor_generator(G2_etas, G4_etas, G4_zetas, G4_gammas)
 
-path = "/Users/furinkazan/08_hack_amp_model_test/"
+path = "../traj_folder/"  # linking traj_folder from the fps_folder
+train_tools = TrainTools(descriptor, path, False)  # turn force off
+training_traj, validation_traj = train_tools.read_traj()  # use default index
 
-train_tools = Train_tools(descriptor, path, False)
-training_traj, validation_traj = train_tools.read_traj() #default index
+# get dft energies
 e_dft_train, e_dft_validation = train_tools.get_dft_energy(training_traj, validation_traj, False)
-#print(e_dft_train)
-
-print('***********************************')
-# START Training
 
 nn_features_dict = {
-    'hiddenlayers': (3,3,),
+    'hiddenlayers': (3, 3,),
     'optimizer': 'L-BFGS-B',
     'lossprime': True,
     'convergence': {'energy_rmse': 0.002},
-                    #'force_rmse': 0.1}, # if force on
-    #'force_coefficient': 0.04
+    'indices_fit_forces': 'all'  # '[0, 1, 2]  # if specify training atoms subset using hacked model/__init__.py
 }
+
+# training section
+print(f"*** {Fore.GREEN}START Training{Style.RESET_ALL} ***")
+start = time.time()
 calc = train_tools.train_amp_setup(True, training_traj, **nn_features_dict)
-
-print('** END Training **')
-# get AMP energies and forces
-# if training ended
-calc = Amp.load('amp.amp')
-e_amp_train, e_amp_validation = train_tools.get_neuralnet_energy(calc, training_traj, validation_traj, False)
-
-# Plot
-train_tools.fitting_energy_plot(e_dft_train, e_dft_validation, e_amp_train, e_amp_validation, 'edft_v_eamp')
-
-#train_tools.fitting_force_plot(x_train_force_list, x_valid_force_list, xamp_train_force_list, xamp_valid_force_list,
-#'force_test3x3_energy')
-
 end = time.time()
-#print (end-start, file=open("running_time.txt", "a"))
-f = open("running_time.txt", "a")
+f = open("../running_time.txt", "a")
 f.write("Code finished in " + str(end-start) + "s")
 f.close()
+print(f"*** {Fore.GREEN}END Training{Style.RESET_ALL} ***")
+
+# load calculator
+calc = Amp.load('amp.amp')
+
+# get AMP energies
+e_amp_train, e_amp_validation = train_tools.get_neuralnet_energy(calc, training_traj, validation_traj, False)
+
+# plots
+plot_path = "../plots/"
+if os.path.exists(plot_path):
+    shutil.rmtree(plot_path)
+    os.makedirs(plot_path)
+else:
+    os.makedirs(plot_path)
+os.chdir(plot_path)
+
+train_tools.fitting_energy_plot(e_dft_train, e_dft_validation, e_amp_train, e_amp_validation, 'edft_v_eamp_wof')
+print("All plots generated, Task finished.")
