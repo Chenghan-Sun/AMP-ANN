@@ -136,7 +136,7 @@ class TrainTools:
                 e_ml = atoms.get_potential_energy()
                 self.e_train_dict[index] = e_ml
             else:
-                raise Exception("Training set calculator set-up is not specified!")
+                raise Exception("Get Energies: training set calculator set-up is not specified!")
 
         for index, atoms in enumerate(validation_traj):
             if not set_calc:  # validation set & DFT
@@ -147,7 +147,7 @@ class TrainTools:
                 e_ml = atoms.get_potential_energy()
                 self.e_valid_dict[index] = e_ml
             else:
-                raise Exception("Validation set calculator set-up is not specified!")
+                raise Exception("Get Energies: validation set calculator set-up is not specified!")
 
         if rel_option:
             return self.e_train_dict, self.e_valid_dict
@@ -184,17 +184,34 @@ class TrainTools:
         if not self.force_option:  # check force training button opened
             raise ValueError('Force_option is not turned on for training both energy and force!')
 
-        # assign DFT calculator
+        for index, atoms in enumerate(training_traj):
+            if not set_calc:
+                f_dft = atoms.get_forces()  # assign DFT calculator
+                self.f_train_dict[index] = f_dft  # update dictionary
+            elif set_calc:
+                atoms.set_calculator(calc)
+                f_ml = atoms.get_forces()
+                self.f_train_dict[index] = f_ml
+            else:
+                raise Exception("Get Forces: training set calculator set-up is not specified!")
 
-        f_dft_train = np.array([atoms.get_forces() for atoms in training_traj])
-        f_dft_validation = np.array([atoms.get_forces() for atoms in validation_traj])
+        for index, atoms in enumerate(validation_traj):
+            if not set_calc:
+                f_dft = atoms.get_forces()  # assign DFT calculator
+                self.f_valid_dict[index] = f_dft  # update dictionary
+            elif set_calc:
+                atoms.set_calculator(calc)
+                f_ml = atoms.get_forces()
+                self.f_valid_dict[index] = f_ml
+            else:
+                raise Exception("Get Forces: validation set calculator set-up is not specified!")
 
         # decompose forces into X-Y-Z axises
         x_train_force_list = []
         y_train_force_list = []
         z_train_force_list = []
-        merged_f_dft_train = list(chain(*f_dft_train))
-        for i in merged_f_dft_train:
+        merged_f_train_dict_val = list(chain(*self.f_train_dict.values()))
+        for i in merged_f_train_dict_val:
             x_train_force_list.append(i[0])
             y_train_force_list.append(i[1])
             z_train_force_list.append(i[2])
