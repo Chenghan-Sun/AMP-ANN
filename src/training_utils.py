@@ -24,7 +24,7 @@ from amp.model import LossFunction
 import matplotlib.pyplot as plt
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-# Sklearn module
+# scikit-learn module
 sys.path.insert(0, "/usr/local/lib/python3.7/site-packages/")
 from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
@@ -37,7 +37,8 @@ class TrainTools:
     Note:
         Use coupling with Fp_values_extractor method for generating descriptor.
     """
-    def __init__(self, descriptor, path, force_option, training_traj='trainset.traj', validation_traj='validset.traj'):
+    def __init__(self, descriptor, path, force_option=True, training_traj='trainset.traj',
+                 validation_traj='validset.traj'):
         """
         Summary:
             The params:
@@ -48,10 +49,10 @@ class TrainTools:
         self.training_traj = training_traj
         self.validation_traj = validation_traj
         self.force_option = force_option
-        self.e_dft_train_dict = {}
-        self.e_dft_valid_dict = {}
-        self.e_amp_train_dict = {}
-        self.e_amp_valid_dict = {}
+        self.e_train_dict = {}
+        self.e_valid_dict = {}
+        self.f_train_dict = {}
+        self.f_valid_dict = {}
 
     def read_traj(self, trainset_index=':', validset_index=':'):
         """
@@ -109,54 +110,82 @@ class TrainTools:
         else:
             raise Exception("Training NOT Start")
 
-    def get_dft_energy(self, training_traj, validation_traj, rel_option=False):
+    def get_energies(self, calc, training_traj, validation_traj, set_calc=False, rel_option=False):
         """
         Summary:
-            function to collect DFT energies
+            function to collect DFT / ML energies
         Params:
+            calc: trained calculator by ML algorithms
             training_traj: training set
             validation_traj: validation set
+            set_calc: flag for setting up trained calculator, default to be just DFT energies
             rel_option: flag for get relative energies
         Returns:
             e_dft_train_dict: dictionary of DFT energies for training set
             e_dft_valid_dict：dictionary of DFT energies for validation set
         """
+        if self.force_option:
+            raise Exception("Force training is turned off for only energy training!")
+
         for index, atoms in enumerate(training_traj):
-            e_dft = atoms.get_potential_energy()
-            self.e_dft_train_dict[index] = e_dft  # update dictionary
+            if not set_calc:  # training set & DFT
+                e_dft = atoms.get_potential_energy()  # assign DFT calculator
+                self.e_train_dict[index] = e_dft  # update dictionary
+            elif set_calc:  # training set & ML
+                atoms.set_calculator(calc)  # assign ML calculator
+                e_ml = atoms.get_potential_energy()
+                self.e_train_dict[index] = e_ml
+            else:
+                raise Exception("Training set calculator set-up is not specified!")
+
         for index, atoms in enumerate(validation_traj):
-            e_dft = atoms.get_potential_energy()
-            self.e_dft_valid_dict[index] = e_dft  # update dictionary
+            if not set_calc:  # validation set & DFT
+                e_dft = atoms.get_potential_energy()
+                self.e_valid_dict[index] = e_dft
+            elif set_calc:  # validation set & ML
+                atoms.set_calculator(calc)
+                e_ml = atoms.get_potential_energy()
+                self.e_valid_dict[index] = e_ml
+            else:
+                raise Exception("Validation set calculator set-up is not specified!")
 
         if rel_option:
-            return self.e_dft_train_dict, self.e_dft_valid_dict
+            return self.e_train_dict, self.e_valid_dict
         elif not rel_option:
-            min_e_dft_train = min(self.e_dft_train_dict.items(), key=lambda x: x[1])[1]
-            min_e_dft_valid = min(self.e_dft_valid_dict.items(), key=lambda x: x[1])[1]
-            min_e_dft = min(min_e_dft_train, min_e_dft_valid)
-            rel_e_dft_train = [val - min_e_dft for val in self.e_dft_train_dict.values()]
-            rel_e_dft_valid = [val - min_e_dft for val in self.e_dft_valid_dict.values()]
+            min_e_dft_train = min(self.e_train_dict.items(), key=lambda x: x[1])[1]  # minimum value in dictionary
+            min_e_dft_valid = min(self.e_valid_dict.items(), key=lambda x: x[1])[1]
+            min_e_dft = min(min_e_dft_train, min_e_dft_valid)  # ground minimum
+            rel_e_dft_train = [val - min_e_dft for val in self.e_train_dict.values()]
+            rel_e_dft_valid = [val - min_e_dft for val in self.e_valid_dict.values()]
 
             # re update dictionary
             for key, val in enumerate(rel_e_dft_train):
-                self.e_dft_train_dict[key] = val
+                self.e_train_dict[key] = val
             for key, val in enumerate(rel_e_dft_valid):
-                self.e_dft_valid_dict[key] = val
-            return self.e_dft_train_dict, self.e_dft_valid_dict
+                self.e_valid_dict[key] = val
+            return self.e_train_dict, self.e_valid_dict
 
-
-    def get_dft_force(self, training_traj, validation_traj, rel_option, norm_option, normalize_option):
-        """ Inputs: train-valid sets from fcn --> read_traj
-            Outputs: forces at X-Y-Z axises
-                    choose to return raw or/both relative dft forces
-                    choose to return total force
-            TODO: using dictionary for linear search
+    def get_forces(self, calc, training_traj, validation_traj, set_calc=False, rel_option=False,
+                   norm_option=False, normalize=False):
         """
-        if self.force_option is False:
-            raise ValueError('Force_option is not turned on!')
-        else:
-            pass
+        Summary:
+            function to collect DFT / ML forces
+        Params:
+            calc: trained calculator by ML algorithms
+            training_traj: training set
+            validation_traj: validation set
+            set_calc: flag for setting up trained calculator, default to be just DFT forces
+            rel_option: flag for relative forces
+            norm_option: flag for total forces
+            normalize: flag for normalized forces
+        Returns:
+
+        """
+        if not self.force_option:  # check force training button opened
+            raise ValueError('Force_option is not turned on for training both energy and force!')
+
         # assign DFT calculator
+
         f_dft_train = np.array([atoms.get_forces() for atoms in training_traj])
         f_dft_validation = np.array([atoms.get_forces() for atoms in validation_traj])
 
@@ -180,7 +209,7 @@ class TrainTools:
             z_valid_force_list.append(i[2])
 
         # normalize the decomposed forces
-        if normalize_option is True:
+        if normalize is True:
             x_nor_train_force_list = preprocessing.normalize(x_train_force_list, norm='l2')
             y_nor_train_force_list = preprocessing.normalize(y_train_force_list, norm='l2')
             z_nor_train_force_list = preprocessing.normalize(z_train_force_list, norm='l2')
@@ -211,44 +240,14 @@ class TrainTools:
             return (rel_f_x_dft_train, rel_f_x_dft_valid, rel_f_y_dft_train,
                     rel_f_y_dft_valid, rel_f_z_dft_train, rel_f_z_dft_valid)
 
-        elif norm_option is False and rel_option is False and normalize_option is False:
+        elif norm_option is False and rel_option is False and normalize is False:
             return (x_train_force_list, x_valid_force_list, y_train_force_list,
                     y_valid_force_list, z_train_force_list, z_valid_force_list)
 
-        elif norm_option is False and rel_option is False and normalize_option is True:
+        elif norm_option is False and rel_option is False and normalize is True:
             return (x_nor_train_force_list, x_nor_valid_force_list, y_nor_train_force_list,
                     y_nor_valid_force_list, z_nor_train_force_list, z_nor_valid_force_list)
 
-    def get_neuralnet_energy(self, calc, training_traj, validation_traj, rel_option=False):
-        """
-        Summary:
-            function to collect NN energies
-        Params:
-            calc: trained calculator by ML algorithms
-            training_traj: training set
-            validation_traj: validation set
-            rel_option: flag for get relative energies
-        Returns:
-            e_dft_train_dict: dictionary of DFT energies for training set
-            e_dft_valid_dict：dictionary of DFT energies for validation set
-        """
-        e_amp_train = []
-        e_amp_validation = []
-        for atoms in training_traj:
-            atoms.set_calculator(calc)
-            e_train = atoms.get_potential_energy()
-            e_amp_train.append(e_train)
-        for atoms in validation_traj:
-            atoms.set_calculator(calc)
-            e_valid = atoms.get_potential_energy()
-            e_amp_validation.append(e_valid)
-        if rel_option is True:
-            e_amp = np.concatenate((e_amp_train, e_amp_validation))
-            rel_e_amp_train = e_amp_train - min(e_amp)
-            rel_e_amp_validation = e_amp_validation - min(e_amp)
-            return e_amp_train, e_amp_validation, rel_e_amp_train, rel_e_amp_validation
-        elif rel_option is False:
-            return e_amp_train, e_amp_validation
 
     def get_neuralnet_force(self, calc, training_traj, validation_traj, rel_option, norm_option, normalize_option):
         """ Inputs: trained AMP calculator
