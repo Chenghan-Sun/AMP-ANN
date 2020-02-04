@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 This file:
-    repo for utilities of Atomistic Machine Learning Project
+    Repo for utilities of Atomistic Machine Learning Project
     implemented classes:
-        DatabaseTools: ab-initio data from vasprun.xml files
-            --> db --> .trajfile
-        FpsAnalysisTools:
-
-        TrainTools:
+        `TrainTools:
 
 """
 
@@ -24,8 +20,6 @@ from amp.model.neuralnetwork import NeuralNetwork
 from amp.regression import Regressor
 from amp.model import LossFunction
 
-from amp.analysis import plot_convergence
-
 # Visual
 import matplotlib.pyplot as plt
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -37,55 +31,62 @@ from sklearn import preprocessing
 
 
 class TrainTools:
-    """ Summary:
-            Training module using Machine learning for atomistic system model energies/forces fitting tasks
-        Note:
-            Use coupling with Fp_values_extractor method for generating descriptor.
+    """
+    Summary:
+        Training module using Machine learning for atomistic system model energies/forces fitting tasks
+    Note:
+        Use coupling with Fp_values_extractor method for generating descriptor.
     """
     def __init__(self, descriptor, path, force_option, training_traj='trainset.traj', validation_traj='validset.traj'):
-        """ Parameters:
-                Based on the fcn --> descriptor_generator in Fp_values_extractor module, returned descriptor
-                    used in this fcn.
-                force_option: choose if want to turn on force training
+        """
+        Summary:
+            The params:
+            force_option: bool. Choose if wants to turn on force training
         """
         self.descriptor = descriptor
         self.path = path
         self.training_traj = training_traj
         self.validation_traj = validation_traj
         self.force_option = force_option
+        self.e_dft_train_dict = {}
+        self.e_dft_valid_dict = {}
+        self.e_amp_train_dict = {}
+        self.e_amp_valid_dict = {}
 
     def read_traj(self, trainset_index=':', validset_index=':'):
-        """ Summary:
-                read-in trajectories from traj_folder
-            Parameters:
-                .traj files input, specify selecting range of trajectories
-            Returns:
-                loaded train / test images
+        """
+        Summary:
+            read-in trajectories from traj_folder
+        Params:
+            .traj files input, specify selecting range of trajectories
+        Returns:
+            loaded train / test images
         """
         training_traj = io.read(self.path + self.training_traj, trainset_index)
         validation_traj = io.read(self.path + self.validation_traj, validset_index)
         return training_traj, validation_traj
 
     def train_amp_setup(self, trigger, training_traj, **kwargs):
-        """ Summary:
-                Adjusting convergence parameters
-                how tightly the energy and/or forces are converged --> adjust the LossFunction
-                To change how the code manages the regression process --> use the Regressor class
-            Parameters:
-                dictionary of neural-net parameters:
-                dictionary tructure:
-                    #1 'hiddenlayers': NN architecture
-                    #2 'optimizer'
-                    #3 'lossprime'：True if want gradient-based
-                    #4 'convergence': convergence parameters
-                    #5 force_coefficient: control the relative weighting of the energy and force RMSEs used
-                        in the path to convergence
-                    #6 indices_fit_forces: only use specified list of index of atoms for training,
-                        worked with hacked model/__init__.py ver.
-                trigger: control if choose to begin training
-                training_traj: training set
-            Returns:
-                calc: Trained calculator
+        """
+        Summary:
+            Adjusting convergence parameters
+            how tightly the energy and/or forces are converged --> adjust the LossFunction
+            To change how the code manages the regression process --> use the Regressor class
+        Params:
+            dictionary of neural-net parameters:
+            dictionary structure:
+                #1 'hiddenlayers': NN architecture
+                #2 'optimizer'
+                #3 'lossprime'：True if want gradient-based
+                #4 'convergence': convergence parameters
+                #5 force_coefficient: control the relative weighting of the energy and force RMSEs used
+                    in the path to convergence
+                #6 indices_fit_forces: only use specified list of index of atoms for training,
+                    worked with hacked model/__init__.py ver.
+            trigger: control if choose to begin training
+            training_traj: training set
+        Returns:
+            calc: Trained calculator
 
             TODO: #1 update optimizer
                   #2 update bootstrap-stat
@@ -95,34 +96,54 @@ class TrainTools:
         nn_dict = [v for k, v in kwargs.items()]
         calc = Amp(descriptor=self.descriptor, model=NeuralNetwork(hiddenlayers=nn_dict[0], checkpoints=14),
                    label='amp')
-        regressor = Regressor(optimizer=nn_dict[1], lossprime=nn_dict[2])
-        calc.model.regressor = regressor
-        if self.force_option is False:
+        nn_reg = Regressor(optimizer=nn_dict[1], lossprime=nn_dict[2])  # regressor
+        calc.model.regressor = nn_reg
+        if not self.force_option:
             calc.model.lossfunction = LossFunction(convergence=nn_dict[3], )
-        elif self.force_option is True:
-            # calc.model.lossfunction = LossFunction(convergence=nn_dict[3], force_coefficient=nn_dict[4],
-            #                                      indices_fit_forces=nn_dict[5])
-            calc.model.lossfunction = LossFunction(convergence=nn_dict[3], force_coefficient=nn_dict[4])
+        elif self.force_option:
+            calc.model.lossfunction = LossFunction(convergence=nn_dict[3], force_coefficient=nn_dict[4],
+                                                   indices_fit_forces=nn_dict[5])
 
         if trigger is True:
             calc.train(images=training_traj)
         else:
-            print("Training NOT Start")
+            raise Exception("Training NOT Start")
 
-    @staticmethod
-    def get_dft_energy(training_traj, validation_traj, rel_option):
-        """ Inputs: train-valid sets from fcn --> read_traj
-            Outputs: choose to return raw or/both relative dft energies
+    def get_dft_energy(self, training_traj, validation_traj, rel_option=False):
         """
-        e_dft_train = np.array([atoms.get_potential_energy() for atoms in training_traj])
-        e_dft_validation = np.array([atoms.get_potential_energy() for atoms in validation_traj])
-        if rel_option == False:
-            return e_dft_train, e_dft_validation
-        elif rel_option == True:
-            e_dft = np.concatenate((e_dft_train,e_dft_validation))
-            rel_e_dft_train = e_dft_train - min(e_dft)
-            rel_e_dft_validation = e_dft_validation - min(e_dft)
-            return e_dft_train, e_dft_validation, rel_e_dft_train, rel_e_dft_validation
+        Summary:
+            function to collect DFT energies
+        Params:
+            training_traj: training set
+            validation_traj: validation set
+            rel_option: flag for get relative energies
+        Returns:
+            e_dft_train_dict: dictionary of DFT energies for training set
+            e_dft_valid_dict：dictionary of DFT energies for validation set
+        """
+        for index, atoms in enumerate(training_traj):
+            e_dft = atoms.get_potential_energy()
+            self.e_dft_train_dict[index] = e_dft  # update dictionary
+        for index, atoms in enumerate(validation_traj):
+            e_dft = atoms.get_potential_energy()
+            self.e_dft_valid_dict[index] = e_dft  # update dictionary
+
+        if rel_option:
+            return self.e_dft_train_dict, self.e_dft_valid_dict
+        elif not rel_option:
+            min_e_dft_train = min(self.e_dft_train_dict.items(), key=lambda x: x[1])[1]
+            min_e_dft_valid = min(self.e_dft_valid_dict.items(), key=lambda x: x[1])[1]
+            min_e_dft = min(min_e_dft_train, min_e_dft_valid)
+            rel_e_dft_train = [val - min_e_dft for val in self.e_dft_train_dict.values()]
+            rel_e_dft_valid = [val - min_e_dft for val in self.e_dft_valid_dict.values()]
+
+            # re update dictionary
+            for key, val in enumerate(rel_e_dft_train):
+                self.e_dft_train_dict[key] = val
+            for key, val in enumerate(rel_e_dft_valid):
+                self.e_dft_valid_dict[key] = val
+            return self.e_dft_train_dict, self.e_dft_valid_dict
+
 
     def get_dft_force(self, training_traj, validation_traj, rel_option, norm_option, normalize_option):
         """ Inputs: train-valid sets from fcn --> read_traj
@@ -198,10 +219,18 @@ class TrainTools:
             return (x_nor_train_force_list, x_nor_valid_force_list, y_nor_train_force_list,
                     y_nor_valid_force_list, z_nor_train_force_list, z_nor_valid_force_list)
 
-    @staticmethod
-    def get_neuralnet_energy(calc, training_traj, validation_traj, rel_option):
-        """ Inputs: trained AMP calculator returned from fcn --> train_amp_setup
-            Outputs: raw and/or relative AMP energies
+    def get_neuralnet_energy(self, calc, training_traj, validation_traj, rel_option=False):
+        """
+        Summary:
+            function to collect NN energies
+        Params:
+            calc: trained calculator by ML algorithms
+            training_traj: training set
+            validation_traj: validation set
+            rel_option: flag for get relative energies
+        Returns:
+            e_dft_train_dict: dictionary of DFT energies for training set
+            e_dft_valid_dict：dictionary of DFT energies for validation set
         """
         e_amp_train = []
         e_amp_validation = []
@@ -321,9 +350,9 @@ class TrainTools:
         plt.ylabel('ML-FF energy, eV')
         rms_valid = np.sqrt(mean_squared_error(e_dft_validation, e_amp_validation))
         rms_train = np.sqrt(mean_squared_error(e_dft_train, e_amp_train))
-        #rms_valid_2 = np.sqrt(((e_amp_validation-e_dft_validation) ** 2).mean())
-        #rms_train_2 = np.sqrt(((e_amp_train-e_dft_train) ** 2).mean())
-        #print(rms_train_2, rms_valid_2)
+        # rms_valid_2 = np.sqrt(((e_amp_validation-e_dft_validation) ** 2).mean())
+        # rms_train_2 = np.sqrt(((e_amp_train-e_dft_train) ** 2).mean())
+        # print(rms_train_2, rms_valid_2)
         plt.title('RMSE train=%s, valid=%s' % (rms_train, rms_valid))
 
         plt.subplot(2, 1, 2)
@@ -336,9 +365,14 @@ class TrainTools:
         return rms_train, rms_valid
 
     def fitting_force_plot(self, f_dft_train, f_dft_validation, f_amp_train, f_amp_validation, fig_title):
-        """ Inputs: train-valid dft/amp raw/rel forces for a specific force axis
-            Outputs: Figure 1: fitting results
-                     Figure 2: Histogram of forces sampling
+        """
+        Summary:
+            Plot the forces on x-y-z directions
+        Parameters:
+            train-valid dft/amp raw/rel forces for a specific force axis
+        Returns:
+            Figure 1: fitting results
+            Figure 2: Histogram of forces sampling
         """
         if self.force_option is False:
             raise ValueError('Force_option is not turned on!')
