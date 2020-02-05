@@ -18,11 +18,12 @@
 import time
 import os
 import sys
+import numpy as np
 import shutil
 from colorama import Fore, Style
 
 sys.path.insert(0, '../src/')  # relative path
-from training_utils import FpsAnalysisTools
+from fps_utils import FpsAnalysisTools
 from training_utils import TrainTools
 from amp import Amp
 
@@ -43,13 +44,29 @@ path = "../traj_folder/"  # linking traj_folder from the fps_folder
 train_tools = TrainTools(descriptor, path, True)  # turn force on
 training_traj, validation_traj = train_tools.read_traj()  # use default index
 
-# get dft energies / forces
-e_dft_train, e_dft_validation = train_tools.get_dft_energy(training_traj, validation_traj, False)
+""" get dft energies 
+Note: 
+    None: no calc needed, use with first bool=F
+    first bool: T: set AMP calc; F: DFT calc
+    second bool: T: relative data; F: raw data
+"""
+e_dft_train_dict, e_dft_valid_dict = train_tools.get_energy_dict(None, training_traj, validation_traj, False, False)
+e_dft_train = np.array([val for val in e_dft_train_dict.values()])
+e_dft_valid = np.array([val for val in e_dft_valid_dict.values()])
 
-x_train_force_list, x_valid_force_list, y_train_force_list, y_valid_force_list, z_train_force_list, z_valid_force_list \
-    = train_tools.get_dft_force(training_traj, validation_traj, False, False, False)  # no rel, norm, normalize
+""" get dft forces
+Note: 
+    None: no calc needed, use with first bool=F
+    first bool: F: DFT calc
+    second bool: T: relative data; F: raw data
+"""
+f_dft_train_dict, f_dft_valid_dict = train_tools.get_forces_dict(None, training_traj, validation_traj, False)
+
+x_train_force_list, x_valid_force_list, y_train_force_list, y_valid_force_list, z_train_force_list, \
+    z_valid_force_list = train_tools.force_decompose(False)
 
 # Neural Network features
+fitting_list = 'all'  # if specify training atoms subset using hacked model/__init__.py
 nn_features_dict = {
     'hiddenlayers': (3, 3, ),  # architecture
     'optimizer': 'L-BFGS-B',
@@ -57,13 +74,13 @@ nn_features_dict = {
     'convergence': {'energy_rmse': 0.02,  # e-cutoff
                     'force_rmse': 0.17},  # f-cutoff
     'force_coefficient': 0.04,
-    'indices_fit_forces': 'all'  # '[0, 1, 2]  # if specify training atoms subset using hacked model/__init__.py
+    'indices_fit_forces': fitting_list  # '[0, 1, 2]
 }
 
 # training section
 print(f"*** {Fore.GREEN}START Training{Style.RESET_ALL} ***")
 start = time.time()
-calc = train_tools.train_amp_setup(True, training_traj, **nn_features_dict)
+train_tools.train_amp_setup(True, training_traj, **nn_features_dict)
 end = time.time()
 f = open("../running_time.txt", "a")
 f.write("Code finished in " + str(end-start) + "s")
@@ -71,13 +88,21 @@ f.close()
 print(f"*** {Fore.GREEN}END Training{Style.RESET_ALL} ***")
 
 # load calculator
-calc = Amp.load('amp.amp')
+calc_trained = Amp.load('amp.amp')
 
-# get amp energies / forces
-e_amp_train, e_amp_validation = train_tools.get_neuralnet_energy(calc, training_traj, validation_traj, False)
+""" get amp energies / forces
+Note:
+    calc = calc_trained for loading trained calculator from ML
+    first bool: T: set AMP calc
+"""
+e_amp_train_dict, e_amp_valid_dict = train_tools.get_energy_dict(calc_trained, training_traj,
+                                                                 validation_traj, True, False)
+e_amp_train = np.array([val for val in e_amp_train_dict.values()])
+e_amp_valid = np.array([val for val in e_amp_valid_dict.values()])
 
-xamp_train_force_list, xamp_valid_force_list, yamp_train_force_list, yamp_valid_force_list, zamp_train_force_list, zamp_valid_force_list \
-    = train_tools.get_neuralnet_force(calc, training_traj, validation_traj, False, False, False)
+f_amp_train_dict, f_amp_valid_dict = train_tools.get_forces_dict(calc_trained, training_traj, validation_traj, True)
+x_amp_train_force_list, x_amp_valid_force_list, y_amp_train_force_list, y_amp_valid_force_list, \
+    z_amp_train_force_list, z_amp_valid_force_list = train_tools.force_decompose(False)
 
 # plots
 plot_path = "../plots/"
@@ -88,13 +113,13 @@ else:
     os.makedirs(plot_path)
 os.chdir(plot_path)
 
-train_tools.fitting_energy_plot(e_dft_train, e_dft_validation, e_amp_train, e_amp_validation, 'edft_v_eamp_wf')
+train_tools.fitting_energy_plot(e_dft_train, e_dft_valid, e_amp_train, e_amp_valid, 'edft_v_eamp_wf')
 
-train_tools.fitting_force_plot(x_train_force_list, x_valid_force_list, xamp_train_force_list, xamp_valid_force_list,
+train_tools.fitting_force_plot(x_train_force_list, x_valid_force_list, x_amp_train_force_list, x_amp_valid_force_list,
 'x_fdft_v_famp')
-train_tools.fitting_force_plot(y_train_force_list, y_valid_force_list, yamp_train_force_list, yamp_valid_force_list,
+train_tools.fitting_force_plot(y_train_force_list, y_valid_force_list, y_amp_train_force_list, y_amp_valid_force_list,
 'y_fdft_v_famp')
-train_tools.fitting_force_plot(z_train_force_list, z_valid_force_list, zamp_train_force_list, zamp_valid_force_list,
+train_tools.fitting_force_plot(z_train_force_list, z_valid_force_list, z_amp_train_force_list, z_amp_valid_force_list,
 'z_fdft_v_famp')
 
-print("All plots generated, Task finished.")
+print("All plots generated, Task finished")
