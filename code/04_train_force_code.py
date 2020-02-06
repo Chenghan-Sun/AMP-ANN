@@ -18,8 +18,8 @@
 import time
 import os
 import sys
-import numpy as np
 import shutil
+import numpy as np
 from colorama import Fore, Style
 
 sys.path.insert(0, '../src/')  # relative path
@@ -50,7 +50,9 @@ Note:
     first bool: T: set AMP calc; F: DFT calc
     second bool: T: relative data; F: raw data
 """
-e_dft_train_dict, e_dft_valid_dict = train_tools.get_energy_dict(None, training_traj, validation_traj, False, False)
+db_dir = "../../data/demo_02.db"
+e_dft_train_dict, e_dft_valid_dict = train_tools.get_energy_dict(None, training_traj, validation_traj,
+                                                                 db_dir, False, False)
 e_dft_train = np.array([val for val in e_dft_train_dict.values()])
 e_dft_valid = np.array([val for val in e_dft_valid_dict.values()])
 
@@ -59,8 +61,12 @@ Note:
     None: no calc needed, use with first bool=F
     first bool: F: DFT calc
     second bool: T: relative data; F: raw data
+    get amp energies / forces
+Note:
+    calc = calc_trained for loading trained calculator from ML
+    first bool: T: set AMP calc
 """
-f_dft_train_dict, f_dft_valid_dict = train_tools.get_forces_dict(None, training_traj, validation_traj, False)
+f_dft_train_dict, f_dft_valid_dict = train_tools.get_forces_dict(None, training_traj, validation_traj, db_dir, False)
 
 x_train_force_list, x_valid_force_list, y_train_force_list, y_valid_force_list, z_train_force_list, \
     z_valid_force_list = train_tools.force_decompose(False)
@@ -72,7 +78,7 @@ nn_features_dict = {
     'optimizer': 'L-BFGS-B',
     'lossprime': True,
     'convergence': {'energy_rmse': 0.02,  # e-cutoff
-                    'force_rmse': 0.17},  # f-cutoff
+                    'force_rmse': 0.16},  # f-cutoff
     'force_coefficient': 0.04,
     'indices_fit_forces': fitting_list  # '[0, 1, 2]
 }
@@ -89,22 +95,20 @@ print(f"*** {Fore.GREEN}END Training{Style.RESET_ALL} ***")
 
 # load calculator
 calc_trained = Amp.load('amp.amp')
-
-""" get amp energies / forces
-Note:
-    calc = calc_trained for loading trained calculator from ML
-    first bool: T: set AMP calc
-"""
 e_amp_train_dict, e_amp_valid_dict = train_tools.get_energy_dict(calc_trained, training_traj,
-                                                                 validation_traj, True, False)
+                                                                 validation_traj, db_dir, True, False)
 e_amp_train = np.array([val for val in e_amp_train_dict.values()])
 e_amp_valid = np.array([val for val in e_amp_valid_dict.values()])
 
-f_amp_train_dict, f_amp_valid_dict = train_tools.get_forces_dict(calc_trained, training_traj, validation_traj, True)
+f_amp_train_dict, f_amp_valid_dict = train_tools.get_forces_dict(calc_trained, training_traj,
+                                                                 validation_traj, db_dir, True)
+
 x_amp_train_force_list, x_amp_valid_force_list, y_amp_train_force_list, y_amp_valid_force_list, \
     z_amp_train_force_list, z_amp_valid_force_list = train_tools.force_decompose(False)
 
-# plots
+print(f"{Fore.RED}Task finished{Style.RESET_ALL}")
+
+""" If still want to plot here 
 plot_path = "../plots/"
 if os.path.exists(plot_path):
     shutil.rmtree(plot_path)
@@ -123,3 +127,4 @@ train_tools.fitting_force_plot(z_train_force_list, z_valid_force_list, z_amp_tra
 'z_fdft_v_famp')
 
 print("All plots generated, Task finished")
+"""
