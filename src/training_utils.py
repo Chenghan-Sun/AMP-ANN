@@ -12,6 +12,9 @@ from ase import io
 import numpy as np
 from itertools import chain
 
+# Database module
+from ase.db import connect
+
 # AMP Module
 from amp import Amp
 from amp.model.neuralnetwork import NeuralNetwork
@@ -109,7 +112,8 @@ class TrainTools:
         else:
             raise Exception("Training NOT Start")
 
-    def get_energy_dict(self, calc, training_traj, validation_traj, set_calc=True, rel_option=False):
+    def get_energy_dict(self, calc, training_traj, validation_traj, db_dir, set_calc=True,
+                        rel_option=False):
         """
         Summary:
             function to collect DFT / ML energies
@@ -120,20 +124,24 @@ class TrainTools:
             set_calc: flag for setting up trained calculator, default to be just DFT energies
             rel_option: flag for get relative energies
         Returns:
-            e_dft_train_dict: dictionary of DFT energies for training set
-            e_dft_valid_dict：dictionary of DFT energies for validation set
+            e_train_dict: dictionary of DFT energies for training set
+            e_valid_dict：dictionary of DFT energies for validation set
         """
         if not self.force_option:
             raise Exception("Force training is turned off for only energy training!")
 
+        # check if old db exists
+        new_db = connect(db_dir)  # assign new db's name
         for index, atoms in enumerate(training_traj):
             if not set_calc:  # if just DFT
                 e_dft = atoms.get_potential_energy()  # assign DFT calculator
                 self.e_train_dict[index] = e_dft  # update dictionary
+                new_db.write(atoms, tag='edt')
             elif set_calc:  # training set & ML
                 atoms.set_calculator(calc)  # assign ML calculator
                 e_ml = atoms.get_potential_energy()
                 self.e_train_dict[index] = e_ml
+                new_db.write(atoms, tag='eat')
             else:
                 raise Exception("Get Energies: training set calculator set-up is not specified!")
 
@@ -141,10 +149,12 @@ class TrainTools:
             if not set_calc:  # validation set & DFT
                 e_dft = atoms.get_potential_energy()
                 self.e_valid_dict[index] = e_dft
+                new_db.write(atoms, tag='edv')
             elif set_calc:  # validation set & ML
                 atoms.set_calculator(calc)
                 e_ml = atoms.get_potential_energy()
                 self.e_valid_dict[index] = e_ml
+                new_db.write(atoms, tag='eav')
             else:
                 raise Exception("Get Energies: validation set calculator set-up is not specified!")
 
@@ -174,7 +184,8 @@ class TrainTools:
             validation_traj: validation set
             set_calc: flag for setting up trained calculator, default to be just DFT forces
         Returns:
-
+            f_train_dict: dictionary of DFT forces for training set
+            f_valid_dict：dictionary of DFT forces for validation set
         """
         if not self.force_option:  # check force training button opened
             raise ValueError('Force_option is not turned on for training both energy and force!')
