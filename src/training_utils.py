@@ -5,6 +5,7 @@ This file:
     1. Learning Algorithm
     2. E/F calculations
     3. Plotting
+    TODO: new version of plotting in plot_utils.py
 """
 
 import sys
@@ -112,8 +113,8 @@ class TrainTools:
         else:
             raise Exception("Training NOT Start")
 
-    def get_energy_dict(self, calc, training_traj, validation_traj, db_dir, set_calc=True,
-                        rel_option=False):
+    def get_energy_dict(self, calc, training_traj, validation_traj, db_dir, set_calc,
+                        rel_option):
         """
         Summary:
             function to collect DFT / ML energies
@@ -174,7 +175,7 @@ class TrainTools:
                 self.e_valid_dict[key] = val
             return self.e_train_dict, self.e_valid_dict
 
-    def get_forces_dict(self, calc, training_traj, validation_traj, set_calc=True):
+    def get_forces_dict(self, calc, training_traj, validation_traj, db_dir, set_calc):
         """
         Summary:
             function to collect DFT / ML forces
@@ -189,15 +190,18 @@ class TrainTools:
         """
         if not self.force_option:  # check force training button opened
             raise ValueError('Force_option is not turned on for training both energy and force!')
+        new_db = connect(db_dir)  # assign new db's name
 
         for index, atoms in enumerate(training_traj):
             if not set_calc:
                 f_dft = atoms.get_forces()  # assign DFT calculator
                 self.f_train_dict[index] = f_dft  # update dictionary
+                new_db.write(atoms, tag='fdt')
             elif set_calc:
                 atoms.set_calculator(calc)
                 f_ml = atoms.get_forces()
                 self.f_train_dict[index] = f_ml
+                new_db.write(atoms, tag='fat')
             else:
                 raise Exception("Get Forces: training set calculator set-up is not specified!")
 
@@ -205,15 +209,17 @@ class TrainTools:
             if not set_calc:
                 f_dft = atoms.get_forces()  # assign DFT calculator
                 self.f_valid_dict[index] = f_dft  # update dictionary
+                new_db.write(atoms, tag='fdv')
             elif set_calc:
                 atoms.set_calculator(calc)
                 f_ml = atoms.get_forces()
                 self.f_valid_dict[index] = f_ml
+                new_db.write(atoms, tag='fav')
             else:
                 raise Exception("Get Forces: validation set calculator set-up is not specified!")
         return self.f_train_dict, self.f_valid_dict
 
-    def force_decompose(self, normalize=False):
+    def force_decompose(self, normalize):
         """
         Summary:
             Decompose forces into X-Y-Z axises
@@ -231,7 +237,6 @@ class TrainTools:
             x_train_force_list.append(i[0])
             y_train_force_list.append(i[1])
             z_train_force_list.append(i[2])
-        # print(x_train_force_list)  # test
 
         x_valid_force_list = []
         y_valid_force_list = []
