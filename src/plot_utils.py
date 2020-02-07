@@ -54,20 +54,19 @@ def fitting_energy_plot(e_dft_train, e_dft_valid, e_amp_train, e_amp_valid, fig_
     return np.round(rms_train, decimals=3), np.round(rms_valid, decimals=3)
 
 
-def force_decompose_to_list(db_f_dict):
+def force_decompose_to_list(f_dict_val):
     """
     Decompose forces in dictionary to lists of forces in xyz axises
     """
-    x_train_force_list = []
-    y_train_force_list = []
-    z_train_force_list = []
-    f_train_dict_val = [val for val in db_f_dict.values()]
-    merged_f_train_dict_val = list(chain(*f_train_dict_val))
-    for i in merged_f_train_dict_val:
-        x_train_force_list.append(i[0])
-        y_train_force_list.append(i[1])
-        z_train_force_list.append(i[2])
-    return
+    x_force_list = []
+    y_force_list = []
+    z_force_list = []
+    merged_f_dict_val = list(chain(*f_dict_val))
+    for i in merged_f_dict_val:
+        x_force_list.append(i[0])
+        y_force_list.append(i[1])
+        z_force_list.append(i[2])
+    return x_force_list, y_force_list, z_force_list
 
 
 def fitting_force_plot(self, f_dft_train, f_dft_valid, f_amp_train, f_amp_valid, fig_title):
