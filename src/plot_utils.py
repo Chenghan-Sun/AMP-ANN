@@ -69,7 +69,7 @@ def force_decompose_to_list(f_dict_val):
     return x_force_list, y_force_list, z_force_list
 
 
-def fitting_force_plot(self, f_dft_train, f_dft_valid, f_amp_train, f_amp_valid, fig_title):
+def fitting_force_plot(f_dft_train, f_dft_valid, f_amp_train, f_amp_valid, fig_title):
     """
     Summary:
         Plot the forces on x-y-z directions
@@ -80,9 +80,6 @@ def fitting_force_plot(self, f_dft_train, f_dft_valid, f_amp_train, f_amp_valid,
             orange circles: predicted values
         Sub - Figure 2: Histogram of forces sampling
     """
-    if not self.force_option:
-        raise ValueError('Force_option is not turned on!')
-
     plt.figure(figsize=(6, 8))
     plt.subplot(2, 1, 1)
     plt.plot(f_dft_train, f_dft_train, '-k')
