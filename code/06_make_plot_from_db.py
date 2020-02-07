@@ -27,6 +27,7 @@ os.chdir(plot_path)
 db_dir = "../../data/demo_02.db"
 work_db = connect(db_dir)
 
+# get energies from db
 db_tag_e_list = ['edt', 'edv', 'eat', 'eav']
 db_e_dict = {}
 for index, e_tag in enumerate(db_tag_e_list):
@@ -37,7 +38,19 @@ for index, e_tag in enumerate(db_tag_e_list):
         e_list.append(e_atoms)
     db_e_dict[e_tag] = e_list
 
-# print(db_e_dict)
+for e_tag, e_atoms in db_e_dict.items():
+    if 'edt' in e_tag:
+        e_dft_train = e_atoms
+    elif 'edv' in e_tag:
+        e_dft_valid = e_atoms
+    elif 'eat' in e_tag:
+        e_amp_train = e_atoms
+    elif 'eav' in e_tag:
+        e_amp_valid = e_atoms
+    else:
+        raise Exception("Not key in db_e_dict found")
+
+# get forces from db
 db_tag_f_list = ['fdt', 'fdv', 'fat', 'fav']
 db_f_dict = {}
 for index, f_tag in enumerate(db_tag_f_list):
@@ -60,19 +73,15 @@ for f_tag, f_atoms in db_f_dict.items():
     else:
         raise Exception("Not key in db_f_dict found")
 
-print(x_amp_train_force_list)
-print(x_amp_valid_force_list)
-"""
 # energy plot
 fitting_energy_plot(e_dft_train, e_dft_valid, e_amp_train, e_amp_valid, 'edft_v_eamp_wf')
 
 # forces plot in x-y-z
-fitting_force_plot(x_train_force_list, x_valid_force_list, x_amp_train_force_list, x_amp_valid_force_list,
-'x_fdft_v_famp')
-fitting_force_plot(y_train_force_list, y_valid_force_list, y_amp_train_force_list, y_amp_valid_force_list,
-'y_fdft_v_famp')
-fitting_force_plot(z_train_force_list, z_valid_force_list, z_amp_train_force_list, z_amp_valid_force_list,
-'z_fdft_v_famp')
+fitting_force_plot(x_train_force_list, x_valid_force_list, x_amp_train_force_list,
+                   x_amp_valid_force_list, 'x_fdft_v_famp')
+fitting_force_plot(y_train_force_list, y_valid_force_list, y_amp_train_force_list,
+                   y_amp_valid_force_list, 'y_fdft_v_famp')
+fitting_force_plot(z_train_force_list, z_valid_force_list, z_amp_train_force_list,
+                   z_amp_valid_force_list, 'z_fdft_v_famp')
 
 print("All plots generated, Task finished")
-"""
