@@ -286,9 +286,10 @@ class LossFunction:
                                           'force_maxresid': None, }
                           }
 
-    def __init__(self, energy_coefficient=1.0, force_coefficient=0.04,
+    def __init__(self, indices_fit_forces='all', energy_coefficient=1.0, force_coefficient=0.04,  # CS
                  convergence=None, parallel=None, overfit=0.,
-                 raise_ConvergenceOccurred=True, log_losses=True, d=None, indices_fit_forces='all'):
+                 raise_ConvergenceOccurred=True, log_losses=True, d=None):
+        self.indices_fit_forces = indices_fit_forces
         p = self.parameters = Parameters(
             {'importname': '.model.LossFunction'})
         # 'dict' creates a copy; otherwise mutable in class.
@@ -385,7 +386,9 @@ class LossFunction:
             log('  energy_coefficient: ' + str(p.energy_coefficient))
             log('  force_coefficient: ' + str(p.force_coefficient))
             log('  overfit: ' + str(p.overfit))
+            # log(' Indices to fit (CS): ' + str(p.indices_fit_forces) # CS 
             log('\n')
+            
             if p.force_coefficient is None:
                 header = '%5s %19s %12s %12s %12s'
                 log(header %
@@ -640,9 +643,11 @@ class LossFunction:
                     model.calculate_forces(self.fingerprints[hash],
                                            self.fingerprintprimes[hash])
                 actual_forces = image.get_forces(apply_constraint=False)
-                if self.indices_fit_forces == 'all': 
-                        indices_fit_forces = np.range(0,no_of_atoms) 
-                for index in self.indices_fit_forces: #range(no_of_atoms):
+                if self.indices_fit_forces == 'all': # CS 
+                	self.indices_fit_forces = range(no_of_atoms) # CS
+                else: # CS
+                    print(f'Selected atoms for training are {self.indices_fit_forces}') # CS
+                for index in self.indices_fit_forces: #range(no_of_atoms): # CS
                     for i in range(3):
                         force_resid = abs(amp_forces[index][i] -
                                           actual_forces[index][i])
